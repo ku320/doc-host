@@ -1,157 +1,247 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <title>Admin Panel</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f4f6f8;
-            padding: 30px;
-        }
-        
-        h1 {
-            color: #333;
-        }
-        
-        input,
-        button {
-            padding: 8px;
-            margin: 5px 0;
-        }
-        
-        button {
-            cursor: pointer;
-        }
-        
-        .card {
-            background: #fff;
-            padding: 15px;
-            margin-top: 15px;
-            border-radius: 8px;
-        }
-        
-        .file {
-            display: flex;
-            justify-content: space-between;
-            margin: 6px 0;
-        }
-    </style>
+<meta charset="UTF-8">
+<title>Admin Dashboard</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #0f1115;
+  color: #eaeaea;
+  padding: 40px;
+}
+h1, h3 {
+  text-align: center;
+}
+.card {
+  background: #1b1f27;
+  padding: 20px;
+  margin: auto;
+  max-width: 520px;
+  border-radius: 10px;
+  box-shadow: 0 0 12px rgba(0,0,0,0.6);
+}
+input, select, button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  background: #2a2f3a;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+}
+button {
+  cursor: pointer;
+  font-weight: bold;
+}
+button:hover {
+  background: #3a4150;
+}
+.hidden { display: none; }
+
+.file {
+  display: flex;
+  justify-content: space-between;
+  margin: 8px 0;
+}
+
+.progress {
+  width: 100%;
+  background: #333;
+  border-radius: 5px;
+  margin-top: 10px;
+}
+.progress-bar {
+  height: 10px;
+  width: 0%;
+  background: #4caf50;
+  border-radius: 5px;
+}
+
+.logout {
+  background: #c0392b;
+}
+</style>
 </head>
 
 <body>
 
-    <h1>🔐 Admin Panel</h1>
+<!-- LOGIN -->
+<div id="login" class="card">
+  <h1>🔐 Admin Login</h1>
+  <input type="password" id="tokenInput" placeholder="GitHub Access Token">
+  <button onclick="login()">Login</button>
+  <p id="loginMsg"></p>
+</div>
 
-    <div class="card">
-        <p>GitHub Token:</p>
-        <input type="password" id="token" placeholder="ghp_..." size="50">
-        <br>
-        <button onclick="loadDocs()">Login</button>
+<!-- DASHBOARD -->
+<div id="dashboard" class="card hidden">
+  <h1>⚙ Admin Dashboard</h1>
+
+  <button onclick="showUpload()">⬆ Upload Document</button>
+  <button onclick="showDocs()">📂 All Documents</button>
+  <button class="logout" onclick="logout()">Logout</button>
+
+  <!-- UPLOAD -->
+  <div id="uploadSection" class="hidden">
+    <h3>Upload Document</h3>
+
+    <select id="category">
+      <option value="notes">Notes</option>
+      <option value="projects">Projects</option>
+      <option value="misc">Misc</option>
+    </select>
+
+    <input type="file" id="fileInput">
+    <button id="uploadBtn" onclick="uploadDoc()">Upload</button>
+
+    <div class="progress hidden" id="progressBox">
+      <div class="progress-bar" id="progressBar"></div>
     </div>
+    <p id="progressText"></p>
+  </div>
 
-    <div class="card">
-        <h3>📤 Upload Document</h3>
-        <input type="file" id="fileInput">
-        <br>
-        <button onclick="uploadDoc()">Upload</button>
-    </div>
+  <!-- DOCUMENTS -->
+  <div id="docsSection" class="hidden">
+    <h3>All Documents</h3>
+    <div id="docList">Loading...</div>
+  </div>
+</div>
 
-    <div class="card">
-        <h3>📂 Existing Documents</h3>
-        <div id="docList">Not loaded</div>
-    </div>
+<script>
+const OWNER = "YOUR_GITHUB_USERNAME";
+const REPO  = "YOUR_REPO_NAME";
+const BASE  = "documents";
+const DATA  = "data.json";
+let TOKEN = "";
 
-    <script>
-        const OWNER = "kumar";
-        const REPO = "host";
-        const DOC_PATH = "documents";
-        const DATA_FILE = "data.json";
+/* ---------- AUTH ---------- */
+async function login() {
+  TOKEN = tokenInput.value;
+  loginMsg.innerText = "Checking...";
 
-        function api(path, method = "GET", body = null) {
-            const token = document.getElementById("token").value;
-            return fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}`, {
-                method,
-                headers: {
-                    "Authorization": "token " + token,
-                    "Accept": "application/vnd.github.v3+json"
-                },
-                body: body ? JSON.stringify(body) : null
-            }).then(r => r.json());
-        }
+  const r = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}`, {
+    headers: { Authorization: "token " + TOKEN }
+  });
 
-        async function loadDocs() {
-            const list = document.getElementById("docList");
-            list.innerHTML = "Loading...";
+  if (!r.ok) return loginMsg.innerText = "Invalid token";
 
-            const files = await api(DOC_PATH);
-            list.innerHTML = "";
+  login.classList.add("hidden");
+  dashboard.classList.remove("hidden");
+}
 
-            files.forEach(f => {
-                const div = document.createElement("div");
-                div.className = "file";
-                div.innerHTML = `
-      <span>${f.name}</span>
-      <button onclick="deleteDoc('${f.name}', '${f.sha}')">Delete</button>
+function logout() { location.reload(); }
+
+/* ---------- NAV ---------- */
+function showUpload() {
+  uploadSection.classList.remove("hidden");
+  docsSection.classList.add("hidden");
+}
+function showDocs() {
+  uploadSection.classList.add("hidden");
+  docsSection.classList.remove("hidden");
+  loadDocs();
+}
+
+/* ---------- API ---------- */
+function api(path, method="GET", body=null) {
+  return fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}`, {
+    method,
+    headers: {
+      Authorization: "token " + TOKEN,
+      Accept: "application/vnd.github.v3+json"
+    },
+    body: body ? JSON.stringify(body) : null
+  }).then(r => r.json());
+}
+
+/* ---------- DOC LIST ---------- */
+async function loadDocs() {
+  docList.innerHTML = "Loading...";
+  const data = await api(DATA);
+  const json = JSON.parse(atob(data.content));
+  docList.innerHTML = "";
+
+  json.documents.forEach(d => {
+    const div = document.createElement("div");
+    div.className = "file";
+    div.innerHTML = `
+      <span>${d.category} / ${d.name}</span>
+      <button onclick="deleteDoc('${d.path}')">Delete</button>
     `;
-                list.appendChild(div);
-            });
-        }
+    docList.appendChild(div);
+  });
+}
 
-        async function uploadDoc() {
-            const file = document.getElementById("fileInput").files[0];
-            if (!file) return alert("Select a file");
+/* ---------- UPLOAD ---------- */
+async function uploadDoc() {
+  const file = fileInput.files[0];
+  if (!file) return alert("Select a file");
 
-            const reader = new FileReader();
-            reader.onload = async() => {
-                const content = reader.result.split(",")[1];
+  const category = categorySelect.value;
+  const path = `${BASE}/${category}/${file.name}`;
 
-                await api(`${DOC_PATH}/${file.name}`, "PUT", {
-                    message: "Add document " + file.name,
-                    content: content
-                });
+  uploadBtn.disabled = true;
+  progressBox.classList.remove("hidden");
 
-                await updateData(file.name, "add");
-                loadDocs();
-                alert("Uploaded");
-            };
-            reader.readAsDataURL(file);
-        }
+  const reader = new FileReader();
+  reader.onprogress = e => {
+    if (e.lengthComputable) {
+      const p = (e.loaded / e.total) * 100;
+      progressBar.style.width = p + "%";
+      progressText.innerText = Math.round(p) + "%";
+    }
+  };
 
-        async function deleteDoc(name, sha) {
-            if (!confirm("Delete " + name + "?")) return;
+  reader.onload = async () => {
+    await api(path, "PUT", {
+      message: "Add " + file.name,
+      content: reader.result.split(",")[1]
+    });
 
-            await api(`${DOC_PATH}/${name}`, "DELETE", {
-                message: "Delete document " + name,
-                sha: sha
-            });
+    await updateData(file.name, category, path);
+    uploadBtn.disabled = false;
+    progressText.innerText = "Uploaded ✔";
+    progressBar.style.width = "100%";
+    fileInput.value = "";
+  };
 
-            await updateData(name, "remove");
-            loadDocs();
-        }
+  reader.readAsDataURL(file);
+}
 
-        async function updateData(filename, action) {
-            const data = await api(DATA_FILE);
-            const decoded = JSON.parse(atob(data.content));
+/* ---------- DELETE ---------- */
+async function deleteDoc(path) {
+  if (!confirm("Delete this file?")) return;
 
-            if (action === "add") {
-                decoded.documents.push({
-                    name: filename,
-                    path: `documents/${filename}`
-                });
-            } else {
-                decoded.documents = decoded.documents.filter(d => d.name !== filename);
-            }
+  const f = await api(path);
+  await api(path, "DELETE", {
+    message: "Delete file",
+    sha: f.sha
+  });
 
-            await api(DATA_FILE, "PUT", {
-                message: "Update data.json",
-                content: btoa(JSON.stringify(decoded, null, 2)),
-                sha: data.sha
-            });
-        }
-    </script>
+  await updateData(null, null, path, true);
+  loadDocs();
+}
+
+/* ---------- data.json ---------- */
+async function updateData(name, category, path, remove=false) {
+  const f = await api(DATA);
+  const json = JSON.parse(atob(f.content));
+
+  if (remove) {
+    json.documents = json.documents.filter(d => d.path !== path);
+  } else {
+    json.documents.push({ name, category, path });
+  }
+
+  await api(DATA, "PUT", {
+    message: "Update data.json",
+    content: btoa(JSON.stringify(json, null, 2)),
+    sha: f.sha
+  });
+}
+</script>
 
 </body>
-
 </html>
