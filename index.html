@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Document Store</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            padding: 40px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        
+        #search {
+            width: 100%;
+            padding: 10px;
+            margin: 20px 0;
+            font-size: 16px;
+        }
+        
+        .card {
+            background: #fff;
+            padding: 15px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .file-name {
+            font-weight: bold;
+        }
+        
+        .download {
+            text-decoration: none;
+            background: #007bff;
+            color: white;
+            padding: 8px 14px;
+            border-radius: 5px;
+        }
+        
+        .download:hover {
+            background: #0056b3;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #777;
+            font-size: 14px;
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <h1>📂 Public Document Store</h1>
+
+    <input type="text" id="search" placeholder="Search documents..." onkeyup="filterDocs()">
+
+    <div id="list">Loading documents...</div>
+
+    <div class="footer">
+        Powered by GitHub Pages
+    </div>
+
+    <script>
+        let documents = [];
+
+        async function loadDocuments() {
+            try {
+                const res = await fetch("data.json");
+                const data = await res.json();
+                documents = data.documents;
+                render(documents);
+            } catch (e) {
+                document.getElementById("list").innerHTML = "Failed to load documents.";
+            }
+        }
+
+        function render(docs) {
+            const list = document.getElementById("list");
+            list.innerHTML = "";
+
+            if (docs.length === 0) {
+                list.innerHTML = "No documents available.";
+                return;
+            }
+
+            docs.forEach(doc => {
+                const div = document.createElement("div");
+                div.className = "card";
+                div.innerHTML = `
+      <span class="file-name">${doc.name}</span>
+      <a class="download" href="${doc.path}" download>Download</a>
+    `;
+                list.appendChild(div);
+            });
+        }
+
+        function filterDocs() {
+            const q = document.getElementById("search").value.toLowerCase();
+            const filtered = documents.filter(d =>
+                d.name.toLowerCase().includes(q)
+            );
+            render(filtered);
+        }
+
+        loadDocuments();
+    </script>
+
+</body>
+
+</html>
